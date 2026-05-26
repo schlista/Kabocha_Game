@@ -11,3 +11,7 @@ If you run into trouble, help is available in [our forum](https://forum.defold.c
 Happy Defolding!
 
 ---
+
+## License
+
+This project is licensed under the GNU General Public License v3.0. See [LICENSE](LICENSE) for details.
