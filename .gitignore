@@ -1,0 +1,21 @@
+/.internal
+/build
+.externalToolBuilders
+.DS_Store
+Thumbs.db
+.lock-wscript
+*.pyc
+.project
+.cproject
+builtins
+/.editor_settings
+
+# Signing / private material — these must NOT be in version control.
+# If any of these are already tracked, run `git rm --cached <file>` and
+# rotate the keys (they have to be considered leaked).
+debug.keystore
+debug.keystore.pass.txt
+*.keystore
+*.keystore.pass.txt
+manifest.private.der
+*.private.der

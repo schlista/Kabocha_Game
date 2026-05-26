@@ -1,0 +1,381 @@
+components {
+  id: "collisionhandler"
+  component: "/scripts/veggiehandler.script"
+  position {
+    x: 0.0
+    y: 0.0
+    z: 0.0
+  }
+  rotation {
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+  }
+}
+components {
+  id: "followBubble"
+  component: "/scripts/followBubble.script"
+  position {
+    x: 0.0
+    y: 0.0
+    z: 0.0
+  }
+  rotation {
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+  }
+}
+components {
+  id: "veggiePop"
+  component: "/main/veggiePop.particlefx"
+  position {
+    x: 0.0
+    y: 0.0
+    z: 0.0
+  }
+  rotation {
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+  }
+}
+embedded_components {
+  id: "sprite"
+  type: "sprite"
+  data: "tile_set: \"/main/images.atlas\"\n"
+  "default_animation: \"Chilli (Green)\"\n"
+  "material: \"/builtins/materials/sprite.material\"\n"
+  "blend_mode: BLEND_MODE_ALPHA\n"
+  ""
+  position {
+    x: 0.0
+    y: 0.0
+    z: 0.0
+  }
+  rotation {
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+  }
+}
+embedded_components {
+  id: "collisionobject"
+  type: "collisionobject"
+  data: "collision_shape: \"\"\n"
+  "type: COLLISION_OBJECT_TYPE_DYNAMIC\n"
+  "mass: 3.0\n"
+  "friction: 0.4\n"
+  "restitution: 0.2\n"
+  "group: \"chilipepper\"\n"
+  "mask: \"floor\"\n"
+  "mask: \"bag\"\n"
+  "mask: \"carrot\"\n"
+  "mask: \"greenPepper\"\n"
+  "mask: \"onion\"\n"
+  "mask: \"radish\"\n"
+  "mask: \"garlic\"\n"
+  "mask: \"broccoli\"\n"
+  "mask: \"eggplant\"\n"
+  "mask: \"cucumber\"\n"
+  "mask: \"corn\"\n"
+  "mask: \"pumpkin\"\n"
+  "mask: \"potato\"\n"
+  "mask: \"chilipepper\"\n"
+  "mask: \"outofbounds\"\n"
+  "embedded_collision_shape {\n"
+  "  shapes {\n"
+  "    shape_type: TYPE_SPHERE\n"
+  "    position {\n"
+  "      x: 85.0\n"
+  "      y: 238.0\n"
+  "      z: 0.0\n"
+  "    }\n"
+  "    rotation {\n"
+  "      x: 0.0\n"
+  "      y: 0.0\n"
+  "      z: 0.0\n"
+  "      w: 1.0\n"
+  "    }\n"
+  "    index: 0\n"
+  "    count: 1\n"
+  "  }\n"
+  "  shapes {\n"
+  "    shape_type: TYPE_SPHERE\n"
+  "    position {\n"
+  "      x: 114.0\n"
+  "      y: 168.0\n"
+  "      z: 0.0\n"
+  "    }\n"
+  "    rotation {\n"
+  "      x: 0.0\n"
+  "      y: 0.0\n"
+  "      z: 0.0\n"
+  "      w: 1.0\n"
+  "    }\n"
+  "    index: 1\n"
+  "    count: 1\n"
+  "  }\n"
+  "  shapes {\n"
+  "    shape_type: TYPE_SPHERE\n"
+  "    position {\n"
+  "      x: 111.0\n"
+  "      y: 95.0\n"
+  "      z: 0.0\n"
+  "    }\n"
+  "    rotation {\n"
+  "      x: 0.0\n"
+  "      y: 0.0\n"
+  "      z: 0.0\n"
+  "      w: 1.0\n"
+  "    }\n"
+  "    index: 2\n"
+  "    count: 1\n"
+  "  }\n"
+  "  shapes {\n"
+  "    shape_type: TYPE_SPHERE\n"
+  "    position {\n"
+  "      x: 105.0\n"
+  "      y: -8.0\n"
+  "      z: 0.0\n"
+  "    }\n"
+  "    rotation {\n"
+  "      x: 0.0\n"
+  "      y: 0.0\n"
+  "      z: 0.0\n"
+  "      w: 1.0\n"
+  "    }\n"
+  "    index: 3\n"
+  "    count: 1\n"
+  "  }\n"
+  "  shapes {\n"
+  "    shape_type: TYPE_SPHERE\n"
+  "    position {\n"
+  "      x: 84.0\n"
+  "      y: -103.0\n"
+  "      z: 0.0\n"
+  "    }\n"
+  "    rotation {\n"
+  "      x: 0.0\n"
+  "      y: 0.0\n"
+  "      z: 0.0\n"
+  "      w: 1.0\n"
+  "    }\n"
+  "    index: 4\n"
+  "    count: 1\n"
+  "  }\n"
+  "  shapes {\n"
+  "    shape_type: TYPE_SPHERE\n"
+  "    position {\n"
+  "      x: 40.0\n"
+  "      y: -212.0\n"
+  "      z: 0.0\n"
+  "    }\n"
+  "    rotation {\n"
+  "      x: 0.0\n"
+  "      y: 0.0\n"
+  "      z: 0.0\n"
+  "      w: 1.0\n"
+  "    }\n"
+  "    index: 5\n"
+  "    count: 1\n"
+  "  }\n"
+  "  shapes {\n"
+  "    shape_type: TYPE_SPHERE\n"
+  "    position {\n"
+  "      x: 1.0\n"
+  "      y: -281.0\n"
+  "      z: 0.0\n"
+  "    }\n"
+  "    rotation {\n"
+  "      x: 0.0\n"
+  "      y: 0.0\n"
+  "      z: 0.0\n"
+  "      w: 1.0\n"
+  "    }\n"
+  "    index: 6\n"
+  "    count: 1\n"
+  "  }\n"
+  "  shapes {\n"
+  "    shape_type: TYPE_SPHERE\n"
+  "    position {\n"
+  "      x: -57.0\n"
+  "      y: -355.0\n"
+  "      z: 0.0\n"
+  "    }\n"
+  "    rotation {\n"
+  "      x: 0.0\n"
+  "      y: 0.0\n"
+  "      z: 0.0\n"
+  "      w: 1.0\n"
+  "    }\n"
+  "    index: 7\n"
+  "    count: 1\n"
+  "  }\n"
+  "  shapes {\n"
+  "    shape_type: TYPE_SPHERE\n"
+  "    position {\n"
+  "      x: -123.0\n"
+  "      y: -418.0\n"
+  "      z: 0.0\n"
+  "    }\n"
+  "    rotation {\n"
+  "      x: 0.0\n"
+  "      y: 0.0\n"
+  "      z: 0.0\n"
+  "      w: 1.0\n"
+  "    }\n"
+  "    index: 8\n"
+  "    count: 1\n"
+  "  }\n"
+  "  shapes {\n"
+  "    shape_type: TYPE_SPHERE\n"
+  "    position {\n"
+  "      x: -172.0\n"
+  "      y: -453.0\n"
+  "      z: 0.0\n"
+  "    }\n"
+  "    rotation {\n"
+  "      x: 0.0\n"
+  "      y: 0.0\n"
+  "      z: 0.0\n"
+  "      w: 1.0\n"
+  "    }\n"
+  "    index: 9\n"
+  "    count: 1\n"
+  "  }\n"
+  "  shapes {\n"
+  "    shape_type: TYPE_SPHERE\n"
+  "    position {\n"
+  "      x: -212.0\n"
+  "      y: -481.0\n"
+  "      z: 0.0\n"
+  "    }\n"
+  "    rotation {\n"
+  "      x: 0.0\n"
+  "      y: 0.0\n"
+  "      z: 0.0\n"
+  "      w: 1.0\n"
+  "    }\n"
+  "    index: 10\n"
+  "    count: 1\n"
+  "  }\n"
+  "  shapes {\n"
+  "    shape_type: TYPE_BOX\n"
+  "    position {\n"
+  "      x: 73.0\n"
+  "      y: 411.0\n"
+  "      z: 0.0\n"
+  "    }\n"
+  "    rotation {\n"
+  "      x: 0.0\n"
+  "      y: 0.0\n"
+  "      z: 0.0\n"
+  "      w: 1.0\n"
+  "    }\n"
+  "    index: 11\n"
+  "    count: 3\n"
+  "  }\n"
+  "  shapes {\n"
+  "    shape_type: TYPE_BOX\n"
+  "    position {\n"
+  "      x: 60.0\n"
+  "      y: 470.0\n"
+  "      z: 0.0\n"
+  "    }\n"
+  "    rotation {\n"
+  "      x: 0.0\n"
+  "      y: 0.0\n"
+  "      z: 0.20713525\n"
+  "      w: 0.9783123\n"
+  "    }\n"
+  "    index: 14\n"
+  "    count: 3\n"
+  "  }\n"
+  "  data: 153.72302\n"
+  "  data: 138.84613\n"
+  "  data: 138.84613\n"
+  "  data: 132.15764\n"
+  "  data: 121.72917\n"
+  "  data: 104.961716\n"
+  "  data: 92.96287\n"
+  "  data: 81.53614\n"
+  "  data: 69.500656\n"
+  "  data: 54.936756\n"
+  "  data: 37.2603\n"
+  "  data: 17.607363\n"
+  "  data: 86.71265\n"
+  "  data: 10.0\n"
+  "  data: 17.607363\n"
+  "  data: 52.428764\n"
+  "  data: 10.0\n"
+  "}\n"
+  "linear_damping: 0.0\n"
+  "angular_damping: 0.0\n"
+  "locked_rotation: false\n"
+  "bullet: true\n"
+  ""
+  position {
+    x: 0.0
+    y: 0.0
+    z: 0.0
+  }
+  rotation {
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+  }
+}
+embedded_components {
+  id: "veggietrigger"
+  type: "collisionobject"
+  data: "collision_shape: \"\"\n"
+  "type: COLLISION_OBJECT_TYPE_TRIGGER\n"
+  "mass: 0.0\n"
+  "friction: 0.1\n"
+  "restitution: 0.5\n"
+  "group: \"bubble\"\n"
+  "mask: \"bubble\"\n"
+  "embedded_collision_shape {\n"
+  "  shapes {\n"
+  "    shape_type: TYPE_BOX\n"
+  "    position {\n"
+  "      x: 0.0\n"
+  "      y: -25.0\n"
+  "      z: 0.0\n"
+  "    }\n"
+  "    rotation {\n"
+  "      x: 0.0\n"
+  "      y: 0.0\n"
+  "      z: 0.0\n"
+  "      w: 1.0\n"
+  "    }\n"
+  "    index: 0\n"
+  "    count: 3\n"
+  "  }\n"
+  "  data: 232.18932\n"
+  "  data: 489.58496\n"
+  "  data: 10.0\n"
+  "}\n"
+  "linear_damping: 0.0\n"
+  "angular_damping: 0.0\n"
+  "locked_rotation: false\n"
+  "bullet: false\n"
+  ""
+  position {
+    x: 0.0
+    y: 0.0
+    z: 0.0
+  }
+  rotation {
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+  }
+}

@@ -1,0 +1,30 @@
+function init(self)
+	self.follower = go.get_id()
+	self.target = hash("/bubble")
+	self.is_following = true
+	msg.post("#collisionobject", "disable")
+	msg.post("#veggietrigger", "enable")
+end
+
+function final(self)
+
+end
+
+function update(self, dt)
+	if self.is_following and self.target then
+		go.set_position(go.get_position(self.target), self.follower)
+	end
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("trigger_response") and message.group == hash("bubble") then
+		dropVeggie(self)
+	end
+end
+
+function dropVeggie(self)
+	msg.post("#collisionobject", "enable")
+	msg.post("#veggietrigger", "disable")
+	self.is_following = false
+	self.target = nil
+end

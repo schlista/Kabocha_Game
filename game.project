@@ -1,0 +1,40 @@
+[bootstrap]
+main_collection = /loader/loader.collectionc
+render = /orthographic/render/orthographic.renderc
+
+[script]
+shared_state = 1
+
+[display]
+width = 1920
+height = 1080
+dynamic_orientation = 1
+display_profiles = /builtins/render/default.display_profilesc
+high_dpi = 1
+
+[android]
+input_method = HiddenInputField
+
+[project]
+title = Veggies
+dependencies#0 = https://github.com/britzl/defold-orthographic/archive/refs/tags/3.2.1.zip
+dependencies#1 = https://github.com/Insality/druid/archive/refs/tags/0.11.0.zip
+
+[physics]
+gravity_y = -650.0
+max_collisions = 512
+max_contacts = 512
+max_collision_object_count = 384
+scale = 0.3
+world_count = 3
+trigger_overlap_capacity = 8
+
+[engine]
+fixed_update_frequency = 240
+
+[render]
+clear_color_red = 0.439
+clear_color_green = 0.5725
+clear_color_blue = 0.75
+clear_color_alpha = 1.0
+

@@ -1,0 +1,53 @@
+local game_mode = nil
+go.property("gamemode", hash("unselected"))
+
+local function load_music_volume()
+	local filename = sys.get_save_file("kabocha", "musicvolume")
+	local data = sys.load(filename)
+	return data.volume or .5  
+end
+
+function init(self)	
+	self.gamemode = hash("unselected")
+end
+
+function final(self)
+
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("casual") then
+		game_mode = hash("casual")
+		start_game(self, game_mode)
+		--turn off out of bounds triggers
+		msg.post("main:/shoppingbag#outofbounds", "disable")
+	elseif message_id == hash("challenge") then
+		game_mode = hash("challenge")
+		start_game(self, game_mode)
+		--turn on out of bounds triggers
+		msg.post("main:/shoppingbag#outofbounds", "enable")
+	elseif message_id == hash("timed") then
+		game_mode = hash("timed")
+		start_game(self, game_mode)
+		--turn off out of bounds triggers 
+		msg.post("main:/shoppingbag#outofbounds", "disable")
+	end
+end
+
+function start_game(self, game_mode, gain_value)
+	local musicvolume = load_music_volume()
+	if game_mode == hash("casual") then 
+		objectID = factory.create("main:/factories#startradishfactory", nil, nil, nil, .10)
+		sound.play("/musicplayer#casual1", {delay = 0, gain = musicvolume, pan = 0, speed = .8})
+		self.gamemode = hash("casual")
+	elseif game_mode == hash("challenge") then
+		objectID = factory.create("main:/factories#startradishfactory", nil, nil, nil, .10)
+		sound.play("/musicplayer#challenge1", {delay = 0, gain = musicvolume, pan = 0, speed = .8})
+		self.gamemode = hash("challenge")
+	elseif game_mode == hash("timed") then
+		factory.create("main:/factories#startradishfactory",nil,nil,nil, .10)
+		sound.play("/musicplayer#timed1", {delay = 0, gain = musicvolume, pan = 0, speed = 1.0})
+		self.gamemode = hash("timed")
+	end	
+	go.set("main:/shoppingbag#shoppingbagfront", "tint.w", 0.25)
+end

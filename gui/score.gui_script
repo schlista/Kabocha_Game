@@ -1,0 +1,134 @@
+local camera = require "orthographic.camera"
+local savedata = require "modules.filesave"
+
+local CAMERA_ID = hash("/camera")
+local zoomset = false
+
+--high score stuff
+local function load_highscore(game_mode)
+	return savedata.load_highscore(game_mode)
+end
+
+local function save_highscore(highscore, game_mode)
+	savedata.save_highscore(game_mode, highscore)
+end
+
+local function update_labels(game_mode, highscore)
+	local hs = gui.get_node("highscore")
+	if game_mode ~= "timed" then 
+		gui.set_text(hs, tostring(highscore))
+	else
+		local hours = math.floor(highscore / 3600)
+		local minutes = math.floor((highscore % 3600) / 60) 
+		local seconds = math.floor(highscore % 60) 
+		local output = string.format("%02d:%02d:%02d", hours, minutes, seconds)
+		gui.set_text(hs, output)
+	end
+end
+--end high score stuff
+
+local function update_timer_score (counter)
+	if counter == nil then
+		counter = 0.0001
+	end
+	local hours = math.floor(counter / 3600)
+	local minutes = math.floor((counter % 3600) / 60) 
+	local seconds = math.floor(counter % 60) 
+	local s = gui.get_node("score")
+	local output = string.format("%02d:%02d:%02d", hours, minutes, seconds)
+	gui.set_text(s, output)
+end
+
+function init(self)
+	msg.post(".", "acquire_input_focus") 
+	self.game_mode = nil
+	self.game_over = false
+	self.highscore = 0
+	self.timer = 0 -- in seconds
+end
+
+function update(self, dt)
+	if self.game_mode == "timed" and not self.game_over then 
+		self.timer = self.timer + dt
+		update_timer_score(self.timer)
+	end
+	if zoomset == false then 
+		zoomset = true
+		self.width, self.height = window.get_size()
+		--check if game starting in portrait mode, if so set zoom to 2.0 
+		if self.height > self.width then
+			camera.set_zoom(CAMERA_ID, 2.0)
+		end
+	end
+end
+
+function on_input(self, action_id, action)
+	if action_id == hash("touch") and action.released then 
+		if gui.pick_node(gui.get_node("menubutton"), action.x, action.y) then
+			msg.post("loader:/go#loader", "goto_menu")
+		end
+	end
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("layout_changed") and message.id == hash("Landscape") then
+		-- switching layout to landscape
+		camera.set_zoom(CAMERA_ID, 1.0) --reset zoom for landscape mode
+		if self.game_mode == "casual" then
+			local p = gui.get_node("pumpkinicon")
+			gui.set_visible(p, true)
+		end
+	elseif message_id == hash("layout_changed") and message.id == hash("Portrait") then
+		-- switching layout to portrait
+		camera.set_zoom(CAMERA_ID, 2.0) --increase the zoom the the shopping bag fills up more the screen
+		if self.game_mode == "casual" then
+			local p = gui.get_node("pumpkinicon")
+			gui.set_visible(p, true)
+		end
+	elseif message_id == hash("casual") then
+		self.game_mode = "casual"
+		self.game_over = false
+		self.timer = 0
+		self.highscore = load_highscore(self.game_mode)
+		update_labels(self.game_mode, self.highscore)
+		local p = gui.get_node("pumpkinicon")
+		gui.set_visible(p, true)
+	elseif message_id == hash("timed") then
+		self.game_mode = "timed"
+		self.game_over = false
+		self.timer = 0
+		local s = gui.get_node("score")
+		gui.set_text(s, "Timed")
+		self.highscore = load_highscore(self.game_mode)
+		update_labels(self.game_mode, self.highscore)
+		local p = gui.get_node("pumpkinicon")
+		gui.set_visible(p, false)
+	elseif message_id == hash("challenge") then
+		self.game_mode = "challenge"
+		self.game_over = false
+		self.timer = 0
+		self.highscore = load_highscore(self.game_mode)
+		update_labels(self.game_mode, self.highscore)
+		local p = gui.get_node("pumpkinicon")
+		gui.set_visible(p, false)
+	elseif message_id == hash("update_score") and self.game_mode ~= "timed" then
+		local s = gui.get_node("score")	
+		gui.set_text(s, tostring(message.score))
+		if message.score > self.highscore then
+			self.highscore = message.score
+			save_highscore(message.score, self.game_mode)
+			local hs = gui.get_node("highscore")
+			gui.set_text(hs, tostring(message.score))
+		end
+	elseif message_id == hash("check_timer") then
+		--need to compare timer to high score (low number is better) if game_over by making a pumpkin
+		if self.timer < self.highscore or self.highscore == 0 then
+			self.highscore = self.timer
+			save_highscore(self.timer, self.game_mode)
+			update_labels(self.game_mode, self.highscore)
+		end
+		self.game_over = true
+	elseif message_id == hash("game_over") then
+		self.game_over = true
+	end	
+end

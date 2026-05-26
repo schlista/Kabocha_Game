@@ -1,0 +1,21 @@
+function init(self)
+	msg.post(".", "acquire_input_focus") -- <1>
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("game_over") then
+	local s = gui.get_node("gameover")
+	local menubutton = gui.get_node("menubutton")
+	gui.set_enabled(s, true)
+	gui.set_enabled(menubutton, true)
+	end
+end
+
+function on_input(self, action_id, action)
+	if action_id == hash("touch") and action.pressed then
+		local menubutton = gui.get_node("menubutton")
+		if gui.pick_node(menubutton, action.x, action.y) and gui.is_enabled(menubutton, false) then
+			msg.post("loader:/go#loader", "goto_menu")
+		end 
+	end
+end

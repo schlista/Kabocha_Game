@@ -1,0 +1,68 @@
+local druid = require("druid.druid")
+local slider = require("druid.extended.slider")
+local savedata = require("modules.filesave")
+druid.register("slider", slider)
+
+--save volume setting so it can be accessed by other collections
+local function load_music_volume()
+	return savedata.load_music_volume()
+end
+
+local function save_music_volume(volume)
+	savedata.save_music_volume(volume)
+end
+
+local function load_sound_volume()
+	return savedata.load_sound_volume()
+end
+
+local function save_sound_volume(volume)
+	savedata.save_sound_volume(volume)
+end
+
+function init(self)
+	msg.post(".", "acquire_input_focus") -- <1>
+	--add druid slider code to control volume 
+	-- save volume to a file so we can get to it in the main collection
+	self.druid = druid.new(self)
+	local savedmusicvalue = load_music_volume()
+		local slider = self.druid:new_slider("slider_music_pin", vmath.vector3(95, 0, 0), function(_, value)
+		gui.set_text(gui.get_node("slider_music_text"), math.ceil(value * 100) .. "%")
+		save_music_volume(value)
+	end)
+	slider:set(savedmusicvalue)
+	slider:set_input_node("slider_music_input")
+
+	local savedsoundvalue = load_sound_volume()
+	local slider = self.druid:new_slider("slider_sound_pin", vmath.vector3(95, 0, 0), function(_, value)
+		gui.set_text(gui.get_node("slider_sound_text"), math.ceil(value * 100) .. "%")
+		save_sound_volume(value)
+	end)
+	slider:set(savedsoundvalue)
+	slider:set_input_node("slider_sound_input")
+end
+
+function on_input(self, action_id, action)
+	if action_id == hash("touch") and action.released then 
+		if gui.pick_node(gui.get_node("casualbutton"), action.x, action.y) then 
+			msg.post("loader:/go#loader", "start_casual")
+		elseif gui.pick_node(gui.get_node("challengebutton"), action.x, action.y) then 
+			msg.post("loader:/go#loader", "start_challenge")
+		elseif gui.pick_node(gui.get_node("timedbutton"), action.x, action.y) then 
+			msg.post("loader:/go#loader", "start_timed")			
+		elseif gui.pick_node(gui.get_node("quitbutton"), action.x, action.y) then
+			msg.post("@system:", "exit", {code = 0})
+		elseif gui.pick_node(gui.get_node("quitbutton"), action.x, action.y) then
+			msg.post("@system:", "exit", {code = 0})
+		end
+	end
+	return self.druid:on_input(action_id, action)
+end
+
+function update(self, dt)
+	self.druid:update(dt)
+end
+
+function on_message(self, message_id, message, sender)
+	self.druid:on_message(message_id, message, sender)
+end

@@ -1,0 +1,170 @@
+local savedata = require "modules.filesave"
+
+local score = 0
+local bagbottomenabled = 1
+local sound_volume = 0
+
+-- Per-pair merge lock. Both halves of a single contact (the message that
+-- arrives at A about B, and the one that arrives at B about A) land in the
+-- same physics step, so we key on the two object ids to drop the duplicate
+-- without blocking unrelated pairs elsewhere in the scene.
+local merging_ids = {}
+
+function load_sound_volume()
+	return savedata.load_sound_volume()
+end
+
+function init(self)
+	sound_volume = load_sound_volume()
+end
+
+function final(self)
+
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("contact_point_response") then
+		if message.own_group == message.other_group then
+			local me = go.get_id()
+			local them = message.other_id
+			if merging_ids[me] or merging_ids[them] then
+				return
+			end
+			merging_ids[me] = true
+			merging_ids[them] = true
+			deleteVeggie(them)
+			deleteVeggie(me)
+			spawnNewVeggie(self, message.own_group, message.position)
+			timer.delay(0, false, function()
+				merging_ids[me] = nil
+				merging_ids[them] = nil
+			end)
+		end
+	elseif message_id == hash("trigger_response") and message.group == hash("outofbounds") then
+		game_over() 
+	--check if the veggies hit the floor so we can enalbe the bottom of the bag and delete the veggie that hits it
+	elseif message_id == hash("trigger_response") and message.group == hash("floor") then
+		enablebagbottom()
+		--delete the veggies that hit the floor trigger
+		go.delete(sender)
+	end
+end 
+
+function game_over()
+	--display gameover in the GUI
+	go.set("/bubble#movebubble", "gameover", true)
+	-- Also notify the bubble so it can cancel any pending spawn timer.
+	msg.post("/bubble#movebubble", "game_over")
+	msg.post("/gameover_gui#gameover", "game_over")
+	msg.post("/score_gui#main", "game_over")
+	disablebagbottom()
+end
+
+function deleteVeggie(obj_ID )
+	sound.play("/veggiePop", {delay = 0, gain = sound_volume, pan = 0, speed = 1.15}) 
+	go.delete(obj_ID )
+end
+
+-- Merge chain: contact_point_response on the smaller veggie's group spawns the
+-- next veggie in this table. `casual_bonus` and `challenge_score` are the
+-- per-step score deltas (the +1 every-merge casual bonus is added separately).
+-- `sounds` is a list of {url, delay} pairs to play on that merge.
+-- `timed_complete` triggers the timed-mode game-over branch.
+-- `disable_bag_bottom` opens the bag bottom (giant kabocha case).
+local MERGE_CHAIN = {
+	[hash("radish")]      = { factory = "main:/factories#garlicfactory",      scale = .013, challenge_score = 5 },
+	[hash("garlic")]      = { factory = "main:/factories#chilipepperfactory", scale = .018, challenge_score = 10 },
+	[hash("chilipepper")] = { factory = "main:/factories#greenpepperfactory", scale = .023, challenge_score = 20 },
+	[hash("greenPepper")] = { factory = "main:/factories#onionfactory",       scale = .018, challenge_score = 40 },
+	[hash("onion")]       = { factory = "main:/factories#carrotfactory",      scale = .019, challenge_score = 80 },
+	[hash("carrot")]      = { factory = "main:/factories#cucumberfactory",    scale = .024, challenge_score = 160 },
+	[hash("cucumber")]    = { factory = "main:/factories#cornfactory",        scale = .033, challenge_score = 320 },
+	[hash("corn")]        = { factory = "main:/factories#broccolifactory",    scale = .044, challenge_score = 640 },
+	[hash("broccoli")]    = { factory = "main:/factories#potatofactory",      scale = .029, challenge_score = 1280 },
+	[hash("potato")]      = { factory = "main:/factories#eggplantfactory",    scale = .036, challenge_score = 2560 },
+	[hash("eggplant")]    = {
+		factory = "main:/factories#pumpkinfactory", scale = .057,
+		challenge_score = 5120, casual_bonus = 1,
+		sounds = { {"/musicplayer#kabocha", 0}, {"/musicplayer#clapping", .7} },
+		timed_complete = true,
+	},
+	[hash("pumpkin")]     = {
+		factory = "main:/factories#pumpkinfactory", scale = .057 * 1.32,
+		challenge_score = 10240, casual_bonus = 2,
+		sounds = { {"/musicplayer#giantkabocha", 0}, {"/musicplayer#clapping", .7} },
+		disable_bag_bottom = true,
+	},
+}
+
+function spawnNewVeggie(self, group, pos)
+	-- Gamemode is set once per game session and never changes afterwards,
+	-- so resolve it on the first merge and reuse it for the lifetime of this
+	-- script instance.
+	self.gamemode = self.gamemode or go.get("main:/factories#startgame", "gamemode")
+	local gm = self.gamemode
+	local step = MERGE_CHAIN[group]
+	if not step then
+		return
+	end
+
+	local veggieID = factory.create(step.factory, pos, nil, nil, step.scale)
+	resizeVeggie(veggieID)
+
+	if step.sounds then
+		for _, s in ipairs(step.sounds) do
+			sound.play(s[1], {delay = s[2], gain = sound_volume, pan = 0, speed = 1})
+		end
+	end
+
+	if gm == hash("challenge") then
+		score = score + step.challenge_score
+	elseif gm == hash("casual") and step.casual_bonus then
+		score = score + step.casual_bonus
+	elseif gm == hash("timed") and step.timed_complete then
+		msg.post("/score_gui#main", "check_timer")
+		game_over()
+	end
+
+	if step.disable_bag_bottom then
+		disablebagbottom()
+	end
+
+	particlefx.play("#veggiePop")
+	if gm == hash("casual") then
+		-- Casual mode: 1 point per merge. The kabocha (+1) and giant-kabocha
+		-- (+2) branches above stack on top of this.
+		score = score + 1
+	end
+	if gm == hash("casual") or gm == hash("challenge") then
+		msg.post("/score_gui#main", "update_score", { score = score })
+	end
+end
+
+function enablebagbottom()
+	msg.post("main:/shoppingbag#bottombag", "enable")
+end
+
+function disablebagbottom()
+	msg.post("main:/shoppingbag#bottombag", "disable")
+end
+
+-- function explodebag(self, veggieID)
+-- 	local force = vmath.vector3(1000, 1000, 0) -- Adjust the force vector as needed
+-- 	local static_object_position = vmath.vector3(2000, 1000, 0)
+-- 	local position = go.get_position() -- Get the current position of the dynamic object
+-- 	--local direction = vmath.normalize(position - static_object_position) -- Calculate the direction away from the static object
+-- 	local direction = vmath.vector3(000, 1000,0)
+-- 	local url = msg.url(nil, veggieID, "collisionobject")
+-- 	msg.post (url, "apply_force", {force = force, position = position})
+-- end
+
+-- Combined growth factor matches the original chain (1.5^2 * 1.25^6 * 1.16509),
+-- preserved as a literal product so the prior tuning stays inspectable.
+local SCALE_FACTOR = 1.5 * 1.5 * 1.25 * 1.25 * 1.25 * 1.25 * 1.25 * 1.25 * 1.16509
+
+function resizeVeggie(veggieID)
+	local s = go.get_scale(veggieID)
+	s.x = s.x * SCALE_FACTOR
+	s.y = s.y * SCALE_FACTOR
+	go.set_scale(s, veggieID)
+end

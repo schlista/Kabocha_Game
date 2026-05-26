@@ -1,0 +1,203 @@
+local camera = require "orthographic.camera"
+local savedata = require "modules.filesave"
+local CAMERA_ID = hash("/camera")
+local factories = {"radish", "greenpepper", "garlic", "chilipepper"}
+local speed = 0
+local spawn_wait = .7
+local left_boundary = 620
+local right_boundary = 1270
+local BUBBLE_Y = 950
+local cooldown = 0.6 -- Set the initial cooldown time in seconds
+local cooldownTimer = 0.0 -- Initialize the timer to 0
+local diditgo = false
+local diditgochallenge = false
+local challengehitright = false
+local objectID = nil
+go.property("gameover", false)
+local gamemode = nil
+local sound_volume = 0
+
+math.randomseed(os.time())
+
+function load_sound_volume()
+	return savedata.load_sound_volume()
+end
+
+function init(self)
+	diditgo = false
+	msg.post(".", "acquire_input_focus")
+	self.input = vmath.vector3()
+	self.dir = vmath.vector3(0, 1, 0)
+	self.speed = speed
+	self.gameover = false
+	self.spawn_timer = nil
+	--disable the trigger collider
+	disableBubbleTrigger()
+	gamemode = go.get("main:/factories#startgame", "gamemode")
+	sound_volume = load_sound_volume()
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("game_over") then
+		self.gameover = true
+		-- Cancel any queued veggie spawn so it can't fire after the player has
+		-- already lost.
+		if self.spawn_timer then
+			timer.cancel(self.spawn_timer)
+			self.spawn_timer = nil
+		end
+	end
+end
+
+function final(self)
+
+end
+
+function update(self, dt)
+	local pos = go.get_position()
+	pos = pos + self.dir * self.speed * dt
+	if pos.x > right_boundary then 
+		pos = pos + self.dir * self.speed * dt * -1
+	elseif pos.x < left_boundary then
+		pos = pos + self.dir * self.speed * dt * -1
+	end
+	go.set_position(pos)
+	--old challenge mode code.  
+	-- if not(gamemode == hash("challenge")) then
+	-- 	local pos = go.get_position()
+	-- 	pos = pos + self.dir * self.speed * dt
+	-- 	if pos.x > right_boundary then 
+	-- 		pos = pos + self.dir * self.speed * dt * -1
+	-- 	elseif pos.x < left_boundary then
+	-- 		pos = pos + self.dir * self.speed * dt * -1
+	-- 	end
+	-- 	go.set_position(pos)
+	-- elseif gamemode == hash("challenge") and not (diditgochallenge) then
+	-- 	startChallengeMode()
+	-- 	diditgochallenge = true
+	-- end
+	if cooldownTimer > 0 then
+		cooldownTimer = cooldownTimer - dt
+	end
+end
+
+function on_input(self, action_id, action)
+	local gameover = self.gameover
+	if not (gameover) then 
+		gamemode = go.get("main:/factories#startgame", "gamemode")
+		--if not (gamemode == hash("challenge")) then
+		if action_id == hash("left") then
+			if action.pressed then
+				self.speed = 350
+				self.input.x = -1
+			elseif action.released then
+				self.speed = 0
+			end
+		elseif action_id == hash("right") then
+			if action.pressed then
+				self.speed = 350
+				self.input.x = 1
+			elseif action.released then
+				self.speed = 0
+			end
+		elseif action_id == hash("click") and not (diditgo)and not (gameover) then
+			if cooldownTimer <= 0 then
+				popBubble(self)
+				cooldownTimer = cooldown
+			end
+		elseif action_id == hash("touch") and action.pressed then
+			local mouse_pos = vmath.vector3(action.screen_x, action.screen_y, 0)			
+			-- get world and scren position to properly drop object at touch location
+			local action_pos = vmath.vector3(action.x, action.y, 0)
+			local action_world_pos = camera.screen_to_world(CAMERA_ID, action_pos)
+			--set Y to 950 so the bubble doesn't move on the Y axis
+			action_world_pos.y = BUBBLE_Y
+			if action_world_pos.x > right_boundary then
+				action_world_pos.x = right_boundary
+			elseif action_world_pos.x < left_boundary then
+				action_world_pos.x = left_boundary
+			end
+			go.set_position(action_world_pos)
+		elseif action_id == hash("touch") and action.released and not (diditgo)and not (gameover) then
+			--need to clean this up as it's a copy and paste of other code above
+			if cooldownTimer <= 0 then
+				popBubble(self)
+				cooldownTimer = cooldown
+			end
+		end
+		if vmath.length(self.input) > 0 then
+			self.dir = vmath.normalize(self.input)
+		end
+	--old challenge mode where bubble would move one time left to right.
+		-- elseif gamemode == hash("challenge") then
+		-- 	if action_id == hash("click") then
+		-- 		if cooldownTimer <= 0 then
+		-- 			go.cancel_animations(".", "position.x")
+		-- 			popBubble()
+		-- 			cooldownTimer = cooldown 
+		-- 		end
+		-- 	elseif action_id == hash("touch") and action.pressed then
+		-- 		if cooldownTimer <= 0 then
+		-- 			go.cancel_animations(".", "position.x")
+		-- 			popBubble()
+		-- 			cooldownTimer = cooldown 
+		-- 		end
+		-- 	end
+		--end
+	end
+end
+
+function spawnVeggie(gameover)
+	if not (gameover) and not (diditgo) then 
+		-- This function will be called after the specified spawn_wait
+		local random_index = math.random(1, #factories)
+		local selected_factory = factories[random_index]
+		--create bubble for veggie
+		msg.post("#bubbleSprite", "enable")
+		-- Spawn an object from the selected factory
+		if selected_factory == "greenpepper" then 
+			objectID = factory.create("main:/factories#startgreenpepperfactory", nil, nil, nil, .23)
+		elseif selected_factory == "chilipepper" then
+			objectID = factory.create("main:/factories#startchilipepperfactory", nil, nil, nil, .18)
+		elseif selected_factory == "garlic" then
+			objectID = factory.create("main:/factories#startgarlicfactory", nil, nil, nil, .13)
+		elseif selected_factory == "radish" then
+			objectID = factory.create("main:/factories#startradishfactory", nil, nil, nil, .10)
+		end
+		msg.post(msg.url(nil, objectID, "collisionobject"), "disable")
+		disableBubbleTrigger()
+		diditgo = true
+	end
+end
+
+function popBubble(self)
+	if self.gameover then
+		return
+	end
+	sound.play("/bubblePop", {delay = 0, gain = sound_volume, pan = 0, speed = 1.15}) 
+	particlefx.play("/bubble#bubblepop")
+	msg.post("main:/bubble#bubbletrigger", "enable")
+	msg.post("#bubbleSprite", "disable")
+	-- Start the timer so that the collision doesn't spawn two veggies. Stash
+	-- the handle on self so game_over can cancel it.
+	self.spawn_timer = timer.delay(spawn_wait, false, function()
+		self.spawn_timer = nil
+		spawnVeggie(self.gameover)
+		diditgo = false
+		diditgochallenge = false
+	end)
+end 
+
+function disableBubbleTrigger() 
+	msg.post("main:/bubble#bubbletrigger", "disable")
+end
+
+-- function startChallengeMode() 
+-- 	local from = vmath.vector3(left_boundary, BUBBLE_Y, 0)
+-- 	go.set_position(from)
+-- 	--animate the bubble to move to the right boundary  
+-- 	go.animate(".","position.x",go.PLAYBACK_ONCE_FORWARD, right_boundary, go.EASING_INOUTSINE, 2.0, 1.1)
+-- 	diditgochallenge = false
+-- 	challengehitright = false 
+-- end
+

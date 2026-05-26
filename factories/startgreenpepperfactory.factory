@@ -1,0 +1,3 @@
+prototype: "/shapes/StartVeggies/startgreenpepper.go"
+load_dynamically: false
+dynamic_prototype: false
