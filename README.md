@@ -1,16 +1,25 @@
-# Welcome to Defold
+# Kabocha Game
 
-This project was created from the "empty" project template.
+A Suika-like merge game where you combine vegetables to evolve them into bigger, better vegetables. Built with [Defold](https://defold.com).
 
-The settings in ["game.project"](defold://open?path=/game.project) are all the default. A bootstrap empty ["main.collection"](defold://open?path=/main/main.collection) is included.
+## Gameplay
 
-Check out [the documentation pages](https://defold.com/learn) for examples, tutorials, manuals and API docs.
+Drop vegetables into the play area. When two of the same vegetable touch, they merge into the next vegetable in the chain. Keep merging to climb the chain — but don't let the bin overflow!
 
-If you run into trouble, help is available in [our forum](https://forum.defold.com).
+## Play Modes
 
-Happy Defolding!
+- **Casual** — Relaxed play with no pressure. Merge at your own pace.
+- **Challenge** — Test your skill against tougher conditions.
+- **Timed** — Race the clock to score as much as you can before time runs out.
 
----
+## Running the Game
+
+Open the project in the [Defold editor](https://defold.com/download/) and press **Build** (Ctrl/Cmd + B) to play.
+
+## Community
+
+- [Defold forum](https://forum.defold.com) — questions, feedback, and discussion
+- [Defold documentation](https://defold.com/learn) — tutorials, manuals, and API docs
 
 ## License
 
