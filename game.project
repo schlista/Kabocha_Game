@@ -16,7 +16,7 @@ high_dpi = 1
 input_method = HiddenInputField
 
 [project]
-title = Veggies
+title = Kabocha_Game
 dependencies#0 = https://github.com/britzl/defold-orthographic/archive/refs/tags/3.2.1.zip
 dependencies#1 = https://github.com/Insality/druid/archive/refs/tags/0.11.0.zip
 
