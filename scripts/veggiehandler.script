@@ -67,7 +67,8 @@ end
 
 -- Merge chain: contact_point_response on the smaller veggie's group spawns the
 -- next veggie in this table. `casual_bonus` and `challenge_score` are the
--- per-step score deltas (the +1 every-merge casual bonus is added separately).
+-- per-step score deltas. In casual mode only the pumpkin step scores (1pt);
+-- all other merges award 0.
 -- `sounds` is a list of {url, delay} pairs to play on that merge.
 -- `timed_complete` triggers the timed-mode game-over branch.
 -- `disable_bag_bottom` opens the bag bottom (giant kabocha case).
@@ -90,7 +91,7 @@ local MERGE_CHAIN = {
 	},
 	[hash("pumpkin")]     = {
 		factory = "main:/factories#pumpkinfactory", scale = .057 * 1.32,
-		challenge_score = 10240, casual_bonus = 2,
+		challenge_score = 10240,
 		sounds = { {"/musicplayer#giantkabocha", 0}, {"/musicplayer#clapping", .7} },
 		disable_bag_bottom = true,
 	},
@@ -130,11 +131,6 @@ function spawnNewVeggie(self, group, pos)
 	end
 
 	particlefx.play("#veggiePop")
-	if gm == hash("casual") then
-		-- Casual mode: 1 point per merge. The kabocha (+1) and giant-kabocha
-		-- (+2) branches above stack on top of this.
-		score = score + 1
-	end
 	if gm == hash("casual") or gm == hash("challenge") then
 		msg.post("/score_gui#main", "update_score", { score = score })
 	end

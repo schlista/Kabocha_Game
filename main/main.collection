@@ -26,7 +26,7 @@ instances {
   position {
     x: 944.0
     y: 950.0
-    z: 0.0
+    z: 0.5
   }
   rotation {
     x: 0.0
@@ -37,6 +37,26 @@ instances {
   scale3 {
     x: 0.45
     y: 0.45
+    z: 1.0
+  }
+}
+instances {
+  id: "preview_bubble"
+  prototype: "/main/preview_bubble.go"
+  position {
+    x: 350.0
+    y: 950.0
+    z: 0.5
+  }
+  rotation {
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    w: 1.0
+  }
+  scale3 {
+    x: 0.315
+    y: 0.315
     z: 1.0
   }
 }

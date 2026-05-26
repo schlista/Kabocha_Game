@@ -1,6 +1,8 @@
+go.property("follow_target", hash("/bubble"))
+
 function init(self)
 	self.follower = go.get_id()
-	self.target = hash("/bubble")
+	self.target = self.follow_target
 	self.is_following = true
 	msg.post("#collisionobject", "disable")
 	msg.post("#veggietrigger", "enable")
@@ -19,12 +21,26 @@ end
 function on_message(self, message_id, message, sender)
 	if message_id == hash("trigger_response") and message.group == hash("bubble") then
 		dropVeggie(self)
+	elseif message_id == hash("switch_to_main") then
+		-- Slide complete: the preview bubble has carried us over the main
+		-- bubble and is about to snap back to rest. Follow the main bubble
+		-- from now on so the player can steer us.
+		self.target = hash("/bubble")
 	end
 end
 
+-- Short delay before the newly-released veggie's collider activates. Prevents
+-- it from immediately contacting the previously-dropped veggie when the player
+-- drops two in rapid succession.
+local CONTACT_DELAY = 0.15
+
 function dropVeggie(self)
-	msg.post("#collisionobject", "enable")
 	msg.post("#veggietrigger", "disable")
 	self.is_following = false
 	self.target = nil
+	-- Let the veggie start falling under gravity, then enable contact after a
+	-- short delay so it has time to clear the spawn area.
+	timer.delay(CONTACT_DELAY, false, function()
+		msg.post("#collisionobject", "enable")
+	end)
 end

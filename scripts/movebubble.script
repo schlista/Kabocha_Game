@@ -3,11 +3,17 @@ local savedata = require "modules.filesave"
 local CAMERA_ID = hash("/camera")
 local factories = {"radish", "greenpepper", "garlic", "chilipepper"}
 local speed = 0
-local spawn_wait = .7
+-- Delay between popping the bubble and a new on-deck veggie appearing in the
+-- preview bubble. Keeps the visual rhythm pleasant.
+local spawn_wait = 1.0
 local left_boundary = 620
 local right_boundary = 1270
 local BUBBLE_Y = 950
-local cooldown = 0.6 -- Set the initial cooldown time in seconds
+-- Must match the bubble instance z in main.collection. The touch handler
+-- gets world coords from camera.screen_to_world (z=0), which would push the
+-- bubble behind the basket-front overlay; we re-apply this every frame.
+local BUBBLE_Z = 0.5
+local cooldown = 1.0 -- Click cooldown; keep >= spawn_wait so players can't queue clicks faster than veggies appear
 local cooldownTimer = 0.0 -- Initialize the timer to 0
 local diditgo = false
 local diditgochallenge = false
@@ -16,6 +22,26 @@ local objectID = nil
 go.property("gameover", false)
 local gamemode = nil
 local sound_volume = 0
+
+-- Where the on-deck veggie waits before being promoted to the main bubble.
+local PREVIEW_TARGET = hash("/preview_bubble")
+-- Rest x of the preview bubble. The bubble GO is animated away from this
+-- spot during a promotion and then snapped back here.
+local PREVIEW_REST_X = 350
+-- Main bubble is rendered at this uniform scale (see main.collection). The
+-- preview bubble grows up to this scale during a promotion slide.
+local MAIN_BUBBLE_SCALE = 0.45
+-- On-deck items (bubble + veggie) sit at this fraction of their full size
+-- while waiting in the preview slot. Must match PREVIEW_SCALE_FACTOR in
+-- startgame.script.
+local PREVIEW_SCALE_FACTOR = 0.7
+local PREVIEW_REST_SCALE = MAIN_BUBBLE_SCALE * PREVIEW_SCALE_FACTOR
+-- How long the preview bubble takes to slide over to the main bubble during
+-- a drop. Drives the visual "on-deck becomes active" transition.
+local SLIDE_DURATION = 0.6
+-- Brief window the bubble trigger is enabled to dispatch trigger_response on
+-- the current veggie (so it drops). Long enough for one physics step.
+local BUBBLE_TRIGGER_WINDOW = 0.05
 
 math.randomseed(os.time())
 
@@ -31,6 +57,8 @@ function init(self)
 	self.speed = speed
 	self.gameover = false
 	self.spawn_timer = nil
+	self.on_deck_id = nil
+	self.on_deck_scale = nil
 	--disable the trigger collider
 	disableBubbleTrigger()
 	gamemode = go.get("main:/factories#startgame", "gamemode")
@@ -46,6 +74,12 @@ function on_message(self, message_id, message, sender)
 			timer.cancel(self.spawn_timer)
 			self.spawn_timer = nil
 		end
+	elseif message_id == hash("set_on_deck") then
+		-- startgame.script (and spawnPreview below) tell us which factory-spawned
+		-- veggie is currently waiting in the preview bubble, plus the full-size
+		-- scale it should grow to when promoted.
+		self.on_deck_id = message.id
+		self.on_deck_scale = message.scale
 	end
 end
 
@@ -61,6 +95,7 @@ function update(self, dt)
 	elseif pos.x < left_boundary then
 		pos = pos + self.dir * self.speed * dt * -1
 	end
+	pos.z = BUBBLE_Z
 	go.set_position(pos)
 	--old challenge mode code.  
 	-- if not(gamemode == hash("challenge")) then
@@ -112,6 +147,7 @@ function on_input(self, action_id, action)
 			local action_world_pos = camera.screen_to_world(CAMERA_ID, action_pos)
 			--set Y to 950 so the bubble doesn't move on the Y axis
 			action_world_pos.y = BUBBLE_Y
+			action_world_pos.z = BUBBLE_Z
 			if action_world_pos.x > right_boundary then
 				action_world_pos.x = right_boundary
 			elseif action_world_pos.x < left_boundary then
@@ -147,42 +183,91 @@ function on_input(self, action_id, action)
 	end
 end
 
-function spawnVeggie(gameover)
-	if not (gameover) and not (diditgo) then 
-		-- This function will be called after the specified spawn_wait
-		local random_index = math.random(1, #factories)
-		local selected_factory = factories[random_index]
-		--create bubble for veggie
-		msg.post("#bubbleSprite", "enable")
-		-- Spawn an object from the selected factory
-		if selected_factory == "greenpepper" then 
-			objectID = factory.create("main:/factories#startgreenpepperfactory", nil, nil, nil, .23)
-		elseif selected_factory == "chilipepper" then
-			objectID = factory.create("main:/factories#startchilipepperfactory", nil, nil, nil, .18)
-		elseif selected_factory == "garlic" then
-			objectID = factory.create("main:/factories#startgarlicfactory", nil, nil, nil, .13)
-		elseif selected_factory == "radish" then
-			objectID = factory.create("main:/factories#startradishfactory", nil, nil, nil, .10)
-		end
-		msg.post(msg.url(nil, objectID, "collisionobject"), "disable")
-		disableBubbleTrigger()
-		diditgo = true
+function spawnPreview(self)
+	-- Places a new random starter veggie inside the preview bubble. Called
+	-- after every drop and tracked as the new on-deck.
+	if self.gameover then return end
+	local random_index = math.random(1, #factories)
+	local selected_factory = factories[random_index]
+	local props = { follow_target = PREVIEW_TARGET }
+	local new_id
+	local target_scale
+	if selected_factory == "greenpepper" then
+		target_scale = .23
+		new_id = factory.create("main:/factories#startgreenpepperfactory", nil, nil, props, target_scale * PREVIEW_SCALE_FACTOR)
+	elseif selected_factory == "chilipepper" then
+		target_scale = .18
+		new_id = factory.create("main:/factories#startchilipepperfactory", nil, nil, props, target_scale * PREVIEW_SCALE_FACTOR)
+	elseif selected_factory == "garlic" then
+		target_scale = .13
+		new_id = factory.create("main:/factories#startgarlicfactory", nil, nil, props, target_scale * PREVIEW_SCALE_FACTOR)
+	elseif selected_factory == "radish" then
+		target_scale = .10
+		new_id = factory.create("main:/factories#startradishfactory", nil, nil, props, target_scale * PREVIEW_SCALE_FACTOR)
 	end
+	msg.post(msg.url(nil, new_id, "collisionobject"), "disable")
+	self.on_deck_id = new_id
+	self.on_deck_scale = target_scale
 end
 
 function popBubble(self)
 	if self.gameover then
 		return
 	end
-	sound.play("/bubblePop", {delay = 0, gain = sound_volume, pan = 0, speed = 1.15}) 
+	sound.play("/bubblePop", {delay = 0, gain = sound_volume, pan = 0, speed = 1.15})
 	particlefx.play("/bubble#bubblepop")
-	msg.post("main:/bubble#bubbletrigger", "enable")
 	msg.post("#bubbleSprite", "disable")
-	-- Start the timer so that the collision doesn't spawn two veggies. Stash
-	-- the handle on self so game_over can cancel it.
+	-- Briefly enable the bubble trigger so the current veggie's followBubble
+	-- script receives a trigger_response and drops. We disable it again
+	-- before the on-deck veggie can slide into the trigger area.
+	msg.post("main:/bubble#bubbletrigger", "enable")
+	timer.delay(BUBBLE_TRIGGER_WINDOW, false, function()
+		msg.post("main:/bubble#bubbletrigger", "disable")
+	end)
+	-- Slide the entire preview bubble (with veggie inside) over to the main
+	-- bubble position. The veggie keeps following /preview_bubble during the
+	-- slide via its per-frame follow, so it travels along visually.
+	local on_deck = self.on_deck_id
+	local on_deck_scale = self.on_deck_scale
+	self.on_deck_id = nil
+	self.on_deck_scale = nil
+	local main_x = go.get_position(hash("/bubble")).x
+	-- Grow the preview bubble from its rest scale up to the main bubble's
+	-- scale while it slides across.
+	go.animate("/preview_bubble", "scale.x", go.PLAYBACK_ONCE_FORWARD,
+		MAIN_BUBBLE_SCALE, go.EASING_INOUTQUAD, SLIDE_DURATION)
+	go.animate("/preview_bubble", "scale.y", go.PLAYBACK_ONCE_FORWARD,
+		MAIN_BUBBLE_SCALE, go.EASING_INOUTQUAD, SLIDE_DURATION)
+	-- Grow the on-deck veggie alongside it.
+	if on_deck and on_deck_scale then
+		local veg_url = msg.url(nil, on_deck, nil)
+		go.animate(veg_url, "scale.x", go.PLAYBACK_ONCE_FORWARD,
+			on_deck_scale, go.EASING_INOUTQUAD, SLIDE_DURATION)
+		go.animate(veg_url, "scale.y", go.PLAYBACK_ONCE_FORWARD,
+			on_deck_scale, go.EASING_INOUTQUAD, SLIDE_DURATION)
+	end
+	go.animate("/preview_bubble", "position.x", go.PLAYBACK_ONCE_FORWARD,
+		main_x, go.EASING_INOUTQUAD, SLIDE_DURATION, 0,
+		function()
+			-- Veggie now follows the player-controlled bubble.
+			if on_deck then
+				msg.post(msg.url(nil, on_deck, "followBubble"), "switch_to_main")
+			end
+			-- Snap the preview bubble back to its rest position and rest
+			-- scale (empty until the next spawnPreview fires).
+			local p = go.get_position("/preview_bubble")
+			p.x = PREVIEW_REST_X
+			go.set_position(p, "/preview_bubble")
+			go.set("/preview_bubble", "scale.x", PREVIEW_REST_SCALE)
+			go.set("/preview_bubble", "scale.y", PREVIEW_REST_SCALE)
+			-- Reveal the main bubble glass around the newly arrived veggie.
+			msg.post("#bubbleSprite", "enable")
+		end)
+	-- Queue a new random veggie in the preview bubble. Stash the handle so
+	-- game_over can cancel it.
 	self.spawn_timer = timer.delay(spawn_wait, false, function()
 		self.spawn_timer = nil
-		spawnVeggie(self.gameover)
+		spawnPreview(self)
 		diditgo = false
 		diditgochallenge = false
 	end)

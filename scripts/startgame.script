@@ -1,6 +1,31 @@
 local game_mode = nil
 go.property("gamemode", hash("unselected"))
 
+local PREVIEW_TARGET = hash("/preview_bubble")
+local MAIN_TARGET = hash("/bubble")
+-- On-deck veggies are spawned at this fraction of their normal size and grow
+-- to full size during the slide-to-main animation. Must match the value used
+-- in movebubble.script.
+local PREVIEW_SCALE_FACTOR = 0.7
+
+-- Random starter factories used to populate the on-deck preview bubble.
+local START_FACTORIES = {
+	{ url = "main:/factories#startradishfactory",      scale = .10 },
+	{ url = "main:/factories#startgreenpepperfactory", scale = .23 },
+	{ url = "main:/factories#startgarlicfactory",      scale = .13 },
+	{ url = "main:/factories#startchilipepperfactory", scale = .18 },
+}
+
+local function spawn_preview()
+	math.randomseed(os.time())
+	local pick = START_FACTORIES[math.random(1, #START_FACTORIES)]
+	local id = factory.create(pick.url, nil, nil, { follow_target = PREVIEW_TARGET }, pick.scale * PREVIEW_SCALE_FACTOR)
+	-- Keep the on-deck veggie inert until it has been promoted and slid into
+	-- the main bubble.
+	msg.post(msg.url(nil, id, "collisionobject"), "disable")
+	return id, pick.scale
+end
+
 local function load_music_volume()
 	local filename = sys.get_save_file("kabocha", "musicvolume")
 	local data = sys.load(filename)
@@ -37,17 +62,22 @@ end
 function start_game(self, game_mode, gain_value)
 	local musicvolume = load_music_volume()
 	if game_mode == hash("casual") then 
-		objectID = factory.create("main:/factories#startradishfactory", nil, nil, nil, .10)
+		objectID = factory.create("main:/factories#startradishfactory", nil, nil, { follow_target = MAIN_TARGET }, .10)
 		sound.play("/musicplayer#casual1", {delay = 0, gain = musicvolume, pan = 0, speed = .8})
 		self.gamemode = hash("casual")
 	elseif game_mode == hash("challenge") then
-		objectID = factory.create("main:/factories#startradishfactory", nil, nil, nil, .10)
+		objectID = factory.create("main:/factories#startradishfactory", nil, nil, { follow_target = MAIN_TARGET }, .10)
 		sound.play("/musicplayer#challenge1", {delay = 0, gain = musicvolume, pan = 0, speed = .8})
 		self.gamemode = hash("challenge")
 	elseif game_mode == hash("timed") then
-		factory.create("main:/factories#startradishfactory",nil,nil,nil, .10)
+		factory.create("main:/factories#startradishfactory", nil, nil, { follow_target = MAIN_TARGET }, .10)
 		sound.play("/musicplayer#timed1", {delay = 0, gain = musicvolume, pan = 0, speed = 1.0})
 		self.gamemode = hash("timed")
 	end	
 	go.set("main:/shoppingbag#shoppingbagfront", "tint.w", 0.25)
+	-- Spawn the on-deck veggie in the preview bubble and tell movebubble who it is
+	-- along with the full-size scale it should grow to when promoted.
+	local on_deck_id, on_deck_scale = spawn_preview()
+	msg.post("main:/bubble#movebubble", "set_on_deck", { id = on_deck_id, scale = on_deck_scale })
 end
+
