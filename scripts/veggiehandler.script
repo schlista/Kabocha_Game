@@ -10,6 +10,70 @@ local sound_volume = 0
 -- without blocking unrelated pairs elsewhere in the scene.
 local merging_ids = {}
 
+-- Freshly-spawned merged veggies are immune to contact_point_response for a
+-- short window so they can't instantly fuse with whatever they spawned on top
+-- of. Stored as id -> spawn timestamp and expired lazily on lookup, because
+-- the parent script that does the spawning is deleted in the same frame
+-- (which would cancel any timer.delay it scheduled).
+local just_spawned = {}
+local SPAWN_COOLDOWN = 0.08
+
+local function is_spawn_locked(id)
+	local t = just_spawned[id]
+	if not t then return false end
+	if socket.gettime() - t >= SPAWN_COOLDOWN then
+		just_spawned[id] = nil
+		return false
+	end
+	return true
+end
+
+-- Bag interior bounds in WORLD coordinates (go.get_position returns world,
+-- so the clamp must compare against world values, not the bag's local frame).
+-- Bag GO is at world (949, 478) in main/main.collection; left/right wall shapes
+-- inside main/shoppingbag.go sit at local x=-386 / +383 with half-width 17.5,
+-- so inner wall faces are world x = 949-386+17.5 = 580.5 and 949+383-17.5 = 1314.5.
+local BAG_LEFT_INNER  =  580.5
+local BAG_RIGHT_INNER = 1314.5
+
+-- Merge chain: contact_point_response on the smaller veggie's group spawns the
+-- next veggie in this table. `casual_bonus` and `challenge_score` are the
+-- per-step score deltas. In casual mode only the pumpkin step scores (1pt);
+-- all other merges award 0.
+-- `sounds` is a list of {url, delay} pairs to play on that merge.
+-- `timed_complete` triggers the timed-mode game-over branch.
+-- `disable_bag_bottom` opens the bag bottom (giant kabocha case).
+-- `radius` is the spawned veggie's approximate world-space outer radius,
+-- used to clamp the spawn x inside the bag walls. Conservative estimates;
+-- a slightly-too-large value just moves the spawn point a bit inward.
+-- Declared above on_message and spawnNewVeggie so both can see it as a local.
+local MERGE_CHAIN = {
+	[hash("radish")]      = { factory = "main:/factories#garlicfactory",      scale = .013, challenge_score = 5,    radius =  45 },
+	[hash("garlic")]      = { factory = "main:/factories#chilipepperfactory", scale = .018, challenge_score = 10,   radius =  55 },
+	[hash("chilipepper")] = { factory = "main:/factories#greenpepperfactory", scale = .023, challenge_score = 20,   radius =  70 },
+	[hash("greenPepper")] = { factory = "main:/factories#onionfactory",       scale = .018, challenge_score = 40,   radius =  80 },
+	[hash("onion")]       = { factory = "main:/factories#carrotfactory",      scale = .019, challenge_score = 80,   radius =  90 },
+	[hash("carrot")]      = { factory = "main:/factories#cucumberfactory",    scale = .024, challenge_score = 160,  radius = 105 },
+	[hash("cucumber")]    = { factory = "main:/factories#cornfactory",        scale = .033, challenge_score = 320,  radius = 120 },
+	[hash("corn")]        = { factory = "main:/factories#broccolifactory",    scale = .044, challenge_score = 640,  radius = 140 },
+	[hash("broccoli")]    = { factory = "main:/factories#potatofactory",      scale = .029, challenge_score = 1280, radius = 140 },
+	[hash("potato")]      = { factory = "main:/factories#eggplantfactory",    scale = .036, challenge_score = 2560, radius = 150 },
+	[hash("eggplant")]    = {
+		factory = "main:/factories#pumpkinfactory", scale = .057,
+		challenge_score = 5120, casual_bonus = 1,
+		sounds = { {"/musicplayer#kabocha", 0}, {"/musicplayer#clapping", .7} },
+		timed_complete = true,
+		radius = 160,
+	},
+	[hash("pumpkin")]     = {
+		factory = "main:/factories#pumpkinfactory", scale = .057 * 1.32,
+		challenge_score = 10240,
+		sounds = { {"/musicplayer#giantkabocha", 0}, {"/musicplayer#clapping", .7} },
+		disable_bag_bottom = true,
+		radius = 215,
+	},
+}
+
 function load_sound_volume()
 	return savedata.load_sound_volume()
 end
@@ -27,14 +91,33 @@ function on_message(self, message_id, message, sender)
 		if message.own_group == message.other_group then
 			local me = go.get_id()
 			local them = message.other_id
+			if is_spawn_locked(me) or is_spawn_locked(them) then
+				return
+			end
 			if merging_ids[me] or merging_ids[them] then
 				return
 			end
 			merging_ids[me] = true
 			merging_ids[them] = true
+			-- Spawn at the midpoint of the two veggies rather than at
+			-- message.position (the contact point). The contact point is biased
+			-- toward one side, so when the pair is pressed against a bag wall
+			-- the new (larger) veggie spawns penetrating the wall, which the
+			-- solver resolves unpredictably (sometimes fusing into the wall).
+			local pos = (go.get_position() + go.get_position(them)) * 0.5
+			-- Clamp x so the new veggie's perimeter stays inside the bag walls
+			-- (extra safety on top of the midpoint shift above).
+			local step = MERGE_CHAIN[message.own_group]
+			local r = step and step.radius or 0
+			if r > 0 then
+				local min_x = BAG_LEFT_INNER + r
+				local max_x = BAG_RIGHT_INNER - r
+				if pos.x < min_x then pos.x = min_x end
+				if pos.x > max_x then pos.x = max_x end
+			end
 			deleteVeggie(them)
 			deleteVeggie(me)
-			spawnNewVeggie(self, message.own_group, message.position)
+			spawnNewVeggie(self, message.own_group, pos)
 			timer.delay(0, false, function()
 				merging_ids[me] = nil
 				merging_ids[them] = nil
@@ -65,38 +148,6 @@ function deleteVeggie(obj_ID )
 	go.delete(obj_ID )
 end
 
--- Merge chain: contact_point_response on the smaller veggie's group spawns the
--- next veggie in this table. `casual_bonus` and `challenge_score` are the
--- per-step score deltas. In casual mode only the pumpkin step scores (1pt);
--- all other merges award 0.
--- `sounds` is a list of {url, delay} pairs to play on that merge.
--- `timed_complete` triggers the timed-mode game-over branch.
--- `disable_bag_bottom` opens the bag bottom (giant kabocha case).
-local MERGE_CHAIN = {
-	[hash("radish")]      = { factory = "main:/factories#garlicfactory",      scale = .013, challenge_score = 5 },
-	[hash("garlic")]      = { factory = "main:/factories#chilipepperfactory", scale = .018, challenge_score = 10 },
-	[hash("chilipepper")] = { factory = "main:/factories#greenpepperfactory", scale = .023, challenge_score = 20 },
-	[hash("greenPepper")] = { factory = "main:/factories#onionfactory",       scale = .018, challenge_score = 40 },
-	[hash("onion")]       = { factory = "main:/factories#carrotfactory",      scale = .019, challenge_score = 80 },
-	[hash("carrot")]      = { factory = "main:/factories#cucumberfactory",    scale = .024, challenge_score = 160 },
-	[hash("cucumber")]    = { factory = "main:/factories#cornfactory",        scale = .033, challenge_score = 320 },
-	[hash("corn")]        = { factory = "main:/factories#broccolifactory",    scale = .044, challenge_score = 640 },
-	[hash("broccoli")]    = { factory = "main:/factories#potatofactory",      scale = .029, challenge_score = 1280 },
-	[hash("potato")]      = { factory = "main:/factories#eggplantfactory",    scale = .036, challenge_score = 2560 },
-	[hash("eggplant")]    = {
-		factory = "main:/factories#pumpkinfactory", scale = .057,
-		challenge_score = 5120, casual_bonus = 1,
-		sounds = { {"/musicplayer#kabocha", 0}, {"/musicplayer#clapping", .7} },
-		timed_complete = true,
-	},
-	[hash("pumpkin")]     = {
-		factory = "main:/factories#pumpkinfactory", scale = .057 * 1.32,
-		challenge_score = 10240,
-		sounds = { {"/musicplayer#giantkabocha", 0}, {"/musicplayer#clapping", .7} },
-		disable_bag_bottom = true,
-	},
-}
-
 function spawnNewVeggie(self, group, pos)
 	-- Gamemode is set once per game session and never changes afterwards,
 	-- so resolve it on the first merge and reuse it for the lifetime of this
@@ -110,6 +161,13 @@ function spawnNewVeggie(self, group, pos)
 
 	local veggieID = factory.create(step.factory, pos, nil, nil, step.scale)
 	resizeVeggie(veggieID)
+
+	-- Block contact-driven merges on the freshly spawned veggie for a few
+	-- physics steps so it can't instantly fuse with a same-group veggie it
+	-- spawned overlapping. Timestamp expires lazily in is_spawn_locked; we
+	-- can't use timer.delay here because this script's GO is deleted in the
+	-- same frame, which would cancel the cleanup.
+	just_spawned[veggieID] = socket.gettime()
 
 	if step.sounds then
 		for _, s in ipairs(step.sounds) do

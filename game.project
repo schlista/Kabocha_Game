@@ -21,9 +21,9 @@ dependencies#0 = https://github.com/britzl/defold-orthographic/archive/refs/tags
 dependencies#1 = https://github.com/Insality/druid/archive/refs/tags/0.11.0.zip
 
 [physics]
-gravity_y = -650.0
-max_collisions = 512
-max_contacts = 512
+gravity_y = -680.0
+max_collisions = 1024
+max_contacts = 1024
 max_collision_object_count = 384
 scale = 0.3
 world_count = 3
@@ -40,4 +40,8 @@ clear_color_alpha = 1.0
 
 [sound]
 max_component_count = 32
+
+[particle_fx]
+max_count = 256
+max_emitter_count = 256
 

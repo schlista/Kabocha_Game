@@ -1,63 +1,30 @@
 components {
   id: "collisionhandler"
   component: "/scripts/veggiehandler.script"
-  position {
-    x: 0.0
-    y: 0.0
-    z: 0.0
-  }
-  rotation {
-    x: 0.0
-    y: 0.0
-    z: 0.0
-    w: 1.0
-  }
 }
 components {
   id: "veggiePop"
   component: "/main/veggiePop.particlefx"
-  position {
-    x: 0.0
-    y: 0.0
-    z: 0.0
-  }
-  rotation {
-    x: 0.0
-    y: 0.0
-    z: 0.0
-    w: 1.0
-  }
 }
 embedded_components {
   id: "sprite"
   type: "sprite"
-  data: "tile_set: \"/main/images.atlas\"\n"
-  "default_animation: \"Broccoli\"\n"
+  data: "default_animation: \"Broccoli\"\n"
   "material: \"/builtins/materials/sprite.material\"\n"
-  "blend_mode: BLEND_MODE_ALPHA\n"
+  "textures {\n"
+  "  sampler: \"texture_sampler\"\n"
+  "  texture: \"/main/images.atlas\"\n"
+  "}\n"
   ""
-  position {
-    x: 0.0
-    y: 0.0
-    z: 0.0
-  }
-  rotation {
-    x: 0.0
-    y: 0.0
-    z: 0.0
-    w: 1.0
-  }
   scale {
     x: 2.539568
     y: 2.511111
-    z: 1.0
   }
 }
 embedded_components {
   id: "collisionobject"
   type: "collisionobject"
-  data: "collision_shape: \"\"\n"
-  "type: COLLISION_OBJECT_TYPE_DYNAMIC\n"
+  data: "type: COLLISION_OBJECT_TYPE_DYNAMIC\n"
   "mass: 17.0\n"
   "friction: 0.6\n"
   "restitution: 0.1\n"
@@ -83,13 +50,8 @@ embedded_components {
   "    position {\n"
   "      x: -5.0\n"
   "      y: -47.0\n"
-  "      z: 0.0\n"
   "    }\n"
   "    rotation {\n"
-  "      x: 0.0\n"
-  "      y: 0.0\n"
-  "      z: 0.0\n"
-  "      w: 1.0\n"
   "    }\n"
   "    index: 0\n"
   "    count: 3\n"
@@ -99,13 +61,8 @@ embedded_components {
   "    position {\n"
   "      x: -156.0\n"
   "      y: 26.0\n"
-  "      z: 0.0\n"
   "    }\n"
   "    rotation {\n"
-  "      x: 0.0\n"
-  "      y: 0.0\n"
-  "      z: 0.0\n"
-  "      w: 1.0\n"
   "    }\n"
   "    index: 3\n"
   "    count: 1\n"
@@ -115,13 +72,8 @@ embedded_components {
   "    position {\n"
   "      x: 149.0\n"
   "      y: 49.0\n"
-  "      z: 0.0\n"
   "    }\n"
   "    rotation {\n"
-  "      x: 0.0\n"
-  "      y: 0.0\n"
-  "      z: 0.0\n"
-  "      w: 1.0\n"
   "    }\n"
   "    index: 4\n"
   "    count: 1\n"
@@ -131,13 +83,8 @@ embedded_components {
   "    position {\n"
   "      x: 12.0\n"
   "      y: 196.0\n"
-  "      z: 0.0\n"
   "    }\n"
   "    rotation {\n"
-  "      x: 0.0\n"
-  "      y: 0.0\n"
-  "      z: 0.0\n"
-  "      w: 1.0\n"
   "    }\n"
   "    index: 5\n"
   "    count: 1\n"
@@ -147,13 +94,8 @@ embedded_components {
   "    position {\n"
   "      x: 110.0\n"
   "      y: 153.0\n"
-  "      z: 0.0\n"
   "    }\n"
   "    rotation {\n"
-  "      x: 0.0\n"
-  "      y: 0.0\n"
-  "      z: 0.0\n"
-  "      w: 1.0\n"
   "    }\n"
   "    index: 6\n"
   "    count: 1\n"
@@ -163,13 +105,8 @@ embedded_components {
   "    position {\n"
   "      x: -110.0\n"
   "      y: 135.0\n"
-  "      z: 0.0\n"
   "    }\n"
   "    rotation {\n"
-  "      x: 0.0\n"
-  "      y: 0.0\n"
-  "      z: 0.0\n"
-  "      w: 1.0\n"
   "    }\n"
   "    index: 7\n"
   "    count: 1\n"
@@ -177,33 +114,14 @@ embedded_components {
   "  shapes {\n"
   "    shape_type: TYPE_BOX\n"
   "    position {\n"
-  "      x: -23.0\n"
-  "      y: -96.0\n"
-  "      z: 0.0\n"
-  "    }\n"
-  "    rotation {\n"
-  "      x: 0.0\n"
-  "      y: 0.0\n"
-  "      z: 0.0836609\n"
-  "      w: 0.9964943\n"
-  "    }\n"
-  "    index: 8\n"
-  "    count: 3\n"
-  "  }\n"
-  "  shapes {\n"
-  "    shape_type: TYPE_BOX\n"
-  "    position {\n"
   "      x: 17.0\n"
   "      y: -85.0\n"
-  "      z: 0.0\n"
   "    }\n"
   "    rotation {\n"
-  "      x: 0.0\n"
-  "      y: 0.0\n"
   "      z: -0.19986135\n"
   "      w: 0.9798242\n"
   "    }\n"
-  "    index: 11\n"
+  "    index: 8\n"
   "    count: 3\n"
   "  }\n"
   "  shapes {\n"
@@ -211,15 +129,10 @@ embedded_components {
   "    position {\n"
   "      x: -7.0\n"
   "      y: -205.0\n"
-  "      z: 0.0\n"
   "    }\n"
   "    rotation {\n"
-  "      x: 0.0\n"
-  "      y: 0.0\n"
-  "      z: 0.0\n"
-  "      w: 1.0\n"
   "    }\n"
-  "    index: 14\n"
+  "    index: 11\n"
   "    count: 1\n"
   "  }\n"
   "  shapes {\n"
@@ -227,31 +140,25 @@ embedded_components {
   "    position {\n"
   "      x: 11.0\n"
   "      y: -136.0\n"
-  "      z: 0.0\n"
   "    }\n"
   "    rotation {\n"
-  "      x: 0.0\n"
-  "      y: 0.0\n"
   "      z: -0.09961117\n"
   "      w: 0.9950264\n"
   "    }\n"
-  "    index: 15\n"
+  "    index: 12\n"
   "    count: 3\n"
   "  }\n"
   "  shapes {\n"
   "    shape_type: TYPE_BOX\n"
   "    position {\n"
-  "      x: -25.0\n"
-  "      y: -105.0\n"
-  "      z: 0.0\n"
+  "      x: -31.0\n"
+  "      y: -118.0\n"
   "    }\n"
   "    rotation {\n"
-  "      x: 0.0\n"
-  "      y: 0.0\n"
-  "      z: 0.20965183\n"
-  "      w: 0.9777761\n"
+  "      z: 0.12603658\n"
+  "      w: 0.9920256\n"
   "    }\n"
-  "    index: 18\n"
+  "    index: 15\n"
   "    count: 3\n"
   "  }\n"
   "  data: 73.943085\n"
@@ -265,9 +172,6 @@ embedded_components {
   "  data: 73.943085\n"
   "  data: 99.6103\n"
   "  data: 9.8\n"
-  "  data: 73.943085\n"
-  "  data: 99.6103\n"
-  "  data: 9.8\n"
   "  data: 78.981735\n"
   "  data: 67.38606\n"
   "  data: 99.6103\n"
@@ -276,20 +180,6 @@ embedded_components {
   "  data: 99.6103\n"
   "  data: 9.8\n"
   "}\n"
-  "linear_damping: 0.0\n"
-  "angular_damping: 0.0\n"
-  "locked_rotation: false\n"
   "bullet: true\n"
   ""
-  position {
-    x: 0.0
-    y: 0.0
-    z: 0.0
-  }
-  rotation {
-    x: 0.0
-    y: 0.0
-    z: 0.0
-    w: 1.0
-  }
 }
