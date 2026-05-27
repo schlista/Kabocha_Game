@@ -38,3 +38,6 @@ clear_color_green = 0.5725
 clear_color_blue = 0.75
 clear_color_alpha = 1.0
 
+[sound]
+max_component_count = 32
+

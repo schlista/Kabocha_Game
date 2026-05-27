@@ -685,7 +685,7 @@ embedded_instances {
   "}\n"
   "components {\n"
   "  id: \"kabocha\"\n"
-  "  component: \"/Assets/sounds/kabocha.ogg\"\n"
+  "  component: \"/main/kabocha.sound\"\n"
   "  position {\n"
   "    x: 0.0\n"
   "    y: 0.0\n"

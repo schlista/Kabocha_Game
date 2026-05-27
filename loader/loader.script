@@ -2,7 +2,6 @@ local game_mode = hash("unselected")
 
 local function load_menu(self)
 	msg.post("go#mainmenu", "load")
-	msg.post("go#mainmenu", "enable")
 end
 
 local function unload_menu(self)
@@ -11,7 +10,6 @@ end
 
 local function load_main(self)
 	msg.post("go#main", "load")
-	msg.post("go#main", "enable")
 end
 
 local function unload_main(self)
@@ -37,17 +35,18 @@ function on_message(self, message_id, message, sender)
 		load_main(self)
 		game_mode = hash("challenge")
 	elseif message_id == hash("proxy_loaded") then
-		-- Only react to the main collection finishing its load (not the menu
-		-- proxy), and only when a mode has actually been selected.
+		-- Enable only after the proxy reports its collection has finished
+		-- loading. Posting "enable" right after "load" races on HTML5
+		-- (assets stream in async) and silently leaves the collection
+		-- inactive, producing a blank clear-color screen.
+		msg.post(sender, "enable")
 		if sender.fragment == hash("main") and game_mode ~= hash("unselected") then
-			msg.post("main:/factories#startgame", game_mode)  -- tell main collection which mode to play
-			msg.post("main:/score_gui#main", game_mode) -- tell score gui which content to show based on mode
+			msg.post("main:/factories#startgame", game_mode)
+			msg.post("main:/score_gui#main", game_mode)
 		end
 	elseif message_id == hash("goto_menu") then
 		unload_main(self)
 		load_menu(self)
-		-- Clear the selected mode so a stale value can't be re-sent to a
-		-- collection that is no longer loaded.
 		game_mode = hash("unselected")
 	end
 end

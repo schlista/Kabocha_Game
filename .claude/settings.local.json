@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /tmp/ortho)",
+      "Bash(unzip -o \".internal/lib/0c96a9021510a5cf36775c63b99251d974377a83-ImQwMTc2OWMyNWQ5YzExOTgxODNjNmNlMzEwZDA2ZWYxM2EyNDYwZjAyOTM4OGU0YzJjZjQ0NzkyNjU5ZGJiMDYi.zip\" \"defold-orthographic-3.2.1/orthographic/*\" -d /tmp/ortho)",
+      "Bash(ls -la \"v:/DefoldProjects/Kabocha-Game/build/default_html5\" | head -10 && echo --- && stat -c '%y %n' \"v:/DefoldProjects/Kabocha-Game/game.project\" \"v:/DefoldProjects/Kabocha-Game/main/main.collection\" \"v:/DefoldProjects/Kabocha-Game/build/default_html5/_BobBuildState_\" 2>&1)",
+      "Read(//v/DefoldProjects/Kabocha-Game/**)",
+      "Bash(xxd)"
+    ]
+  }
+}
