@@ -15,19 +15,26 @@ high_dpi = 1
 [android]
 input_method = HiddenInputField
 
+[native_extension]
+app_manifest = /box2d_v3.appmanifest
+
 [project]
 title = Kabocha_Game
 dependencies#0 = https://github.com/britzl/defold-orthographic/archive/refs/tags/3.2.1.zip
 dependencies#1 = https://github.com/Insality/druid/archive/refs/tags/0.11.0.zip
 
 [physics]
-gravity_y = -680.0
-max_collisions = 1024
-max_contacts = 1024
+gravity_y = -980.0
+use_fixed_timestep = 1
+max_collisions = 4096
+max_contacts = 0
 max_collision_object_count = 384
 scale = 0.3
 world_count = 3
 trigger_overlap_capacity = 8
+
+[box2d]
+sub_step_count = 8
 
 [engine]
 fixed_update_frequency = 240

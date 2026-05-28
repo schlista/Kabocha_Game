@@ -39,10 +39,6 @@ local PREVIEW_REST_SCALE = MAIN_BUBBLE_SCALE * PREVIEW_SCALE_FACTOR
 -- How long the preview bubble takes to slide over to the main bubble during
 -- a drop. Drives the visual "on-deck becomes active" transition.
 local SLIDE_DURATION = 0.6
--- Brief window the bubble trigger is enabled to dispatch trigger_response on
--- the current veggie (so it drops). Long enough for one physics step.
-local BUBBLE_TRIGGER_WINDOW = 0.05
-
 math.randomseed(os.time())
 
 function load_sound_volume()
@@ -59,6 +55,7 @@ function init(self)
 	self.spawn_timer = nil
 	self.on_deck_id = nil
 	self.on_deck_scale = nil
+	self.active_id = nil
 	--disable the trigger collider
 	disableBubbleTrigger()
 	gamemode = go.get("main:/factories#startgame", "gamemode")
@@ -80,6 +77,8 @@ function on_message(self, message_id, message, sender)
 		-- scale it should grow to when promoted.
 		self.on_deck_id = message.id
 		self.on_deck_scale = message.scale
+	elseif message_id == hash("set_active") then
+		self.active_id = message.id
 	end
 end
 
@@ -211,19 +210,17 @@ function spawnPreview(self)
 end
 
 function popBubble(self)
-	if self.gameover then
+	if self.gameover or diditgo or not self.active_id or not self.on_deck_id or not self.on_deck_scale then
 		return
 	end
+	diditgo = true
 	sound.play("/bubblePop", {delay = 0, gain = sound_volume, pan = 0, speed = 1.15})
 	particlefx.play("/bubble#bubblepop")
 	msg.post("#bubbleSprite", "disable")
-	-- Briefly enable the bubble trigger so the current veggie's followBubble
-	-- script receives a trigger_response and drops. We disable it again
-	-- before the on-deck veggie can slide into the trigger area.
-	msg.post("main:/bubble#bubbletrigger", "enable")
-	timer.delay(BUBBLE_TRIGGER_WINDOW, false, function()
-		msg.post("main:/bubble#bubbletrigger", "disable")
-	end)
+	-- Drop only the veggie currently attached to the main bubble. This avoids
+	-- relying on trigger enter/exit timing during the preview handoff.
+	msg.post(msg.url(nil, self.active_id, "followBubble"), "drop")
+	self.active_id = nil
 	-- Slide the entire preview bubble (with veggie inside) over to the main
 	-- bubble position. The veggie keeps following /preview_bubble during the
 	-- slide via its per-frame follow, so it travels along visually.

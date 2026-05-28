@@ -49,7 +49,7 @@ embedded_components {
   }
 }
 embedded_components {
-  id: "chilipepper"
+  id: "collisionobject"
   type: "collisionobject"
   data: "collision_shape: \"\"\n"
   "type: COLLISION_OBJECT_TYPE_DYNAMIC\n"

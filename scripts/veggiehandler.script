@@ -4,13 +4,14 @@ local score = 0
 local bagbottomenabled = 1
 local sound_volume = 0
 
--- Per-pair merge lock. Both halves of a single contact (the message that
+-- Per-pair merge lock. Both halves of a single collision (the message that
 -- arrives at A about B, and the one that arrives at B about A) land in the
 -- same physics step, so we key on the two object ids to drop the duplicate
 -- without blocking unrelated pairs elsewhere in the scene.
 local merging_ids = {}
+local MERGE_LOCK_TTL = 0.5
 
--- Freshly-spawned merged veggies are immune to contact_point_response for a
+-- Freshly-spawned merged veggies are immune to merge collision handling for a
 -- short window so they can't instantly fuse with whatever they spawned on top
 -- of. Stored as id -> spawn timestamp and expired lazily on lookup, because
 -- the parent script that does the spawning is deleted in the same frame
@@ -18,14 +19,67 @@ local merging_ids = {}
 local just_spawned = {}
 local SPAWN_COOLDOWN = 0.08
 
-local function is_spawn_locked(id)
+-- Combined growth factor matches the original chain (1.5^2 * 1.25^6 * 1.16509),
+-- preserved as a literal product so the prior tuning stays inspectable.
+local SCALE_FACTOR = 1.5 * 1.5 * 1.25 * 1.25 * 1.25 * 1.25 * 1.25 * 1.25 * 1.16509
+
+local active_veggies = {}
+local blast_direction_seed = 0
+local MERGE_BLAST_FORCE = 450000
+local MERGE_BLAST_RADIUS_PADDING = 180
+local MERGE_BLAST_MIN_DISTANCE = 8
+local MERGE_BLAST_SECOND_DELAY = 0.035
+local MERGE_BLAST_SECOND_FORCE_FACTOR = 0.45
+
+local function is_spawn_locked(id, now)
 	local t = just_spawned[id]
 	if not t then return false end
-	if socket.gettime() - t >= SPAWN_COOLDOWN then
+	if now - t >= SPAWN_COOLDOWN then
 		just_spawned[id] = nil
 		return false
 	end
 	return true
+end
+
+local function cleanup_merge_locks(now)
+	for id, t in pairs(merging_ids) do
+		if now - t >= MERGE_LOCK_TTL then
+			merging_ids[id] = nil
+		end
+	end
+end
+
+local function apply_merge_blast(origin, source_id, radius, force)
+	for veggie_id in pairs(active_veggies) do
+		if veggie_id ~= source_id and not merging_ids[veggie_id] then
+			local ok, target_pos = pcall(go.get_position, veggie_id)
+			if ok and target_pos then
+				local offset = target_pos - origin
+				offset.z = 0
+				local distance = vmath.length(offset)
+				if distance < radius then
+					local direction
+					if distance < MERGE_BLAST_MIN_DISTANCE then
+						blast_direction_seed = blast_direction_seed + 1
+						local angle = blast_direction_seed * 2.39996323
+						direction = vmath.vector3(math.cos(angle), math.sin(angle), 0)
+						distance = MERGE_BLAST_MIN_DISTANCE
+					else
+						direction = offset * (1 / distance)
+					end
+
+					local falloff = 1 - distance / radius
+					local strength = force * (0.25 + 0.75 * falloff)
+					msg.post(msg.url(nil, veggie_id, "collisionobject"), "apply_force", {
+						force = direction * strength,
+						position = target_pos
+					})
+				end
+			else
+				active_veggies[veggie_id] = nil
+			end
+		end
+	end
 end
 
 -- Bag interior bounds in WORLD coordinates (go.get_position returns world,
@@ -36,13 +90,15 @@ end
 local BAG_LEFT_INNER  =  580.5
 local BAG_RIGHT_INNER = 1314.5
 
--- Merge chain: contact_point_response on the smaller veggie's group spawns the
+-- Merge chain: collision_response on the smaller veggie's group spawns the
 -- next veggie in this table. `casual_bonus` and `challenge_score` are the
 -- per-step score deltas. In casual mode only the pumpkin step scores (1pt);
 -- all other merges award 0.
 -- `sounds` is a list of {url, delay} pairs to play on that merge.
 -- `timed_complete` triggers the timed-mode game-over branch.
 -- `disable_bag_bottom` opens the bag bottom (giant kabocha case).
+-- `scale` is the original pre-growth scale; SCALE_FACTOR is applied at
+-- factory creation so the collision body is born at the final visual size.
 -- `radius` is the spawned veggie's approximate world-space outer radius,
 -- used to clamp the spawn x inside the bag walls. Conservative estimates;
 -- a slightly-too-large value just moves the spawn point a bit inward.
@@ -80,56 +136,77 @@ end
 
 function init(self)
 	sound_volume = load_sound_volume()
+	active_veggies[go.get_id()] = true
 end
 
 function final(self)
+	active_veggies[go.get_id()] = nil
+end
 
+local function try_merge(self, message)
+	if message.own_group ~= message.other_group then
+		return
+	end
+
+	local step = MERGE_CHAIN[message.own_group]
+	if not step then
+		return
+	end
+
+	local me = go.get_id()
+	local them = message.other_id
+	local now = socket.gettime()
+	cleanup_merge_locks(now)
+	if is_spawn_locked(me, now) or is_spawn_locked(them, now) then
+		return
+	end
+	if merging_ids[me] or merging_ids[them] then
+		return
+	end
+	merging_ids[me] = now
+	merging_ids[them] = now
+
+	-- Spawn at the midpoint of the two veggies rather than at the reported
+	-- contact point. The contact point is biased toward one side, so when the
+	-- pair is pressed against a bag wall the new larger veggie can otherwise
+	-- spawn penetrating the wall, which the solver resolves unpredictably.
+	local pos = (go.get_position() + go.get_position(them)) * 0.5
+
+	-- Clamp x so the new veggie's perimeter stays inside the bag walls.
+	local r = step.radius or 0
+	if r > 0 then
+		local min_x = BAG_LEFT_INNER + r
+		local max_x = BAG_RIGHT_INNER - r
+		if pos.x < min_x then pos.x = min_x end
+		if pos.x > max_x then pos.x = max_x end
+	end
+
+	deleteVeggie(them)
+	deleteVeggie(me)
+	spawnNewVeggie(self, message.own_group, pos)
 end
 
 function on_message(self, message_id, message, sender)
-	if message_id == hash("contact_point_response") then
-		if message.own_group == message.other_group then
-			local me = go.get_id()
-			local them = message.other_id
-			if is_spawn_locked(me) or is_spawn_locked(them) then
-				return
-			end
-			if merging_ids[me] or merging_ids[them] then
-				return
-			end
-			merging_ids[me] = true
-			merging_ids[them] = true
-			-- Spawn at the midpoint of the two veggies rather than at
-			-- message.position (the contact point). The contact point is biased
-			-- toward one side, so when the pair is pressed against a bag wall
-			-- the new (larger) veggie spawns penetrating the wall, which the
-			-- solver resolves unpredictably (sometimes fusing into the wall).
-			local pos = (go.get_position() + go.get_position(them)) * 0.5
-			-- Clamp x so the new veggie's perimeter stays inside the bag walls
-			-- (extra safety on top of the midpoint shift above).
-			local step = MERGE_CHAIN[message.own_group]
-			local r = step and step.radius or 0
-			if r > 0 then
-				local min_x = BAG_LEFT_INNER + r
-				local max_x = BAG_RIGHT_INNER - r
-				if pos.x < min_x then pos.x = min_x end
-				if pos.x > max_x then pos.x = max_x end
-			end
-			deleteVeggie(them)
-			deleteVeggie(me)
-			spawnNewVeggie(self, message.own_group, pos)
-			timer.delay(0, false, function()
-				merging_ids[me] = nil
-				merging_ids[them] = nil
-			end)
+	if message_id == hash("collision_response") then
+		try_merge(self, message)
+	elseif message_id == hash("trigger_response") then
+		local trigger_group = message.group or message.other_group
+		if trigger_group == hash("outofbounds") then
+			game_over()
+		--check if the veggies hit the floor so we can enalbe the bottom of the bag and delete the veggie that hits it
+		elseif trigger_group == hash("floor") then
+			enablebagbottom()
+			--delete the veggies that hit the floor trigger
+			go.delete(sender)
 		end
-	elseif message_id == hash("trigger_response") and message.group == hash("outofbounds") then
-		game_over() 
-	--check if the veggies hit the floor so we can enalbe the bottom of the bag and delete the veggie that hits it
-	elseif message_id == hash("trigger_response") and message.group == hash("floor") then
-		enablebagbottom()
-		--delete the veggies that hit the floor trigger
-		go.delete(sender)
+	elseif message_id == hash("merge_blast") then
+		local origin = go.get_position()
+		local radius = message.radius or 260
+		local force = message.force or MERGE_BLAST_FORCE
+		apply_merge_blast(origin, go.get_id(), radius, force)
+		timer.delay(MERGE_BLAST_SECOND_DELAY, false, function()
+			apply_merge_blast(go.get_position(), go.get_id(), radius, force * MERGE_BLAST_SECOND_FORCE_FACTOR)
+		end)
 	end
 end 
 
@@ -159,15 +236,21 @@ function spawnNewVeggie(self, group, pos)
 		return
 	end
 
-	local veggieID = factory.create(step.factory, pos, nil, nil, step.scale)
-	resizeVeggie(veggieID)
+	-- Create the physics body at its final size. Resizing an already-active
+	-- dynamic collision object can leave Box2D v3 simulating the old, smaller
+	-- fixture for a frame or longer, which looks like tunnelling/fusing.
+	local veggieID = factory.create(step.factory, pos, nil, nil, step.scale * SCALE_FACTOR)
 
-	-- Block contact-driven merges on the freshly spawned veggie for a few
+	-- Block collision-driven merges on the freshly spawned veggie for a few
 	-- physics steps so it can't instantly fuse with a same-group veggie it
 	-- spawned overlapping. Timestamp expires lazily in is_spawn_locked; we
 	-- can't use timer.delay here because this script's GO is deleted in the
 	-- same frame, which would cancel the cleanup.
 	just_spawned[veggieID] = socket.gettime()
+	msg.post(msg.url(nil, veggieID, "collisionhandler"), "merge_blast", {
+		radius = (step.radius or 100) + MERGE_BLAST_RADIUS_PADDING,
+		force = MERGE_BLAST_FORCE
+	})
 
 	if step.sounds then
 		for _, s in ipairs(step.sounds) do
@@ -212,13 +295,3 @@ end
 -- 	msg.post (url, "apply_force", {force = force, position = position})
 -- end
 
--- Combined growth factor matches the original chain (1.5^2 * 1.25^6 * 1.16509),
--- preserved as a literal product so the prior tuning stays inspectable.
-local SCALE_FACTOR = 1.5 * 1.5 * 1.25 * 1.25 * 1.25 * 1.25 * 1.25 * 1.25 * 1.16509
-
-function resizeVeggie(veggieID)
-	local s = go.get_scale(veggieID)
-	s.x = s.x * SCALE_FACTOR
-	s.y = s.y * SCALE_FACTOR
-	go.set_scale(s, veggieID)
-end

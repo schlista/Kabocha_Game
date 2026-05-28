@@ -1,11 +1,17 @@
 go.property("follow_target", hash("/bubble"))
 
+local MAIN_TARGET = hash("/bubble")
+
 function init(self)
 	self.follower = go.get_id()
 	self.target = self.follow_target
 	self.is_following = true
+	self.can_drop = self.target == MAIN_TARGET
 	msg.post("#collisionobject", "disable")
 	msg.post("#veggietrigger", "enable")
+	if self.can_drop then
+		msg.post("main:/bubble#movebubble", "set_active", { id = self.follower })
+	end
 end
 
 function final(self)
@@ -19,13 +25,17 @@ function update(self, dt)
 end
 
 function on_message(self, message_id, message, sender)
-	if message_id == hash("trigger_response") and message.group == hash("bubble") then
-		dropVeggie(self)
+	if message_id == hash("drop") then
+		if self.can_drop then
+			dropVeggie(self)
+		end
 	elseif message_id == hash("switch_to_main") then
 		-- Slide complete: the preview bubble has carried us over the main
 		-- bubble and is about to snap back to rest. Follow the main bubble
 		-- from now on so the player can steer us.
-		self.target = hash("/bubble")
+		self.target = MAIN_TARGET
+		self.can_drop = true
+		msg.post("main:/bubble#movebubble", "set_active", { id = self.follower })
 	end
 end
 
@@ -37,6 +47,7 @@ local CONTACT_DELAY = 0.15
 function dropVeggie(self)
 	msg.post("#veggietrigger", "disable")
 	self.is_following = false
+	self.can_drop = false
 	self.target = nil
 	-- Let the veggie start falling under gravity, then enable contact after a
 	-- short delay so it has time to clear the spawn area.
